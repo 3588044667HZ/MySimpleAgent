@@ -1,12 +1,15 @@
 import inspect
 import json
-from typing import Any, Callable, Dict, List, Optional, get_type_hints
+import os
+from pathlib import Path
+from typing import Any, Callable, Dict, List, Optional, get_type_hints, Union
 import requests
 
 
 # ----------------------------------------------
 # 1. ToolRegistry – 声明式本地工具注册
 # ----------------------------------------------
+
 class ToolRegistry:
     """
     独立注册中心，提供 @registry.tool(name, desc) 装饰器。
@@ -94,6 +97,38 @@ class ToolRegistry:
     def has(self, name: str) -> bool:
         return name in self._tools
 
+    def safe_path(self, user_path: Union[str, Path], base_dir: Union[str, Path] = os.getcwd()) -> Path:
+        """
+        将用户提供的路径解析为安全的绝对路径，确保其位于 base_dir 之下。
+        如果用户路径尝试逃逸 base_dir（例如使用 ..），将抛出 PermissionError。
+
+        :param user_path: 用户输入的路径（可以是相对路径或绝对路径）
+        :param base_dir: 允许访问的根目录（安全边界）
+        :return: 解析后的绝对 Path 对象
+        :raises PermissionError: 当解析后的路径不在 base_dir 内时
+        :raises ValueError: 当 base_dir 不是有效目录时
+        """
+        base = Path(base_dir).resolve()
+        if not base.is_dir():
+            raise ValueError(f"Base directory does not exist or is not a directory: {base_dir}")
+
+        # 将用户路径与 base 拼接并解析为绝对路径，自动处理符号链接和 ..
+        resolved = (base / user_path).resolve()
+
+        # 检查 resolved 是否在 base 之下（或等于 base）
+        # is_relative_to 在 Python 3.9+ 可用；低版本手动判断
+        try:
+            # Python 3.9+
+            is_within = resolved.is_relative_to(base)
+        except AttributeError:
+            # 降级方案：比较路径字符串前缀
+            is_within = str(resolved).startswith(str(base))
+
+        if not is_within:
+            raise PermissionError(f"Path '{user_path}' resolves outside the allowed base directory '{base_dir}'")
+
+        return resolved
+
     def execute(self, name: str, arguments: dict) -> str:
         """执行本地工具，返回字符串结果。"""
         if not self.has(name):
@@ -105,7 +140,8 @@ class ToolRegistry:
             if not isinstance(result, str):
                 result = json.dumps(result, ensure_ascii=False)
             return result
-        except Exception as e:
+        except json.JSONDecodeError as e:
+            print(f"Error executing tool '{name}': {e}")
             return f"Error executing tool '{name}': {str(e)}"
 
 
