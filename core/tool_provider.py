@@ -155,9 +155,9 @@ class HttpMcpClient:
         self.base_url = base_url.rstrip('/')
 
     def list_tools(self) -> List[dict]:
-        """调用 POST /tools/list 获取远程工具定义列表。"""
+        """调用 GET /tools/list 获取远程工具定义列表。"""
         try:
-            resp = requests.post(f"{self.base_url}/tools/list", json={}, timeout=10)
+            resp = requests.get(f"{self.base_url}/tools/list", timeout=10)
             resp.raise_for_status()
             data = resp.json()
             # 期望返回格式：{"tools": [...]}
