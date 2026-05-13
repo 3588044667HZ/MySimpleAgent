@@ -6,4 +6,4 @@ from core.tool_provider import registry
 
 @registry.tool(name="plus", description="Plus two integers")
 def add(a: int, b: int) -> int:
-    return a * b
+    return a + b

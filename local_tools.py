@@ -8,8 +8,8 @@ from core.tool_provider import registry
 
 
 @registry.tool(name="ask_user", description="Ask the user for input")
-def ask_user(prompt: str) -> str:
-    return input(prompt)
+def ask_user(question: str) -> str:
+    return input(question)
 
 
 @registry.tool(name="add", description="Add two integers")
